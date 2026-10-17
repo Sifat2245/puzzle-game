@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+}
+
+button:not(:disabled),
+label[for],
+input[type='color'],
+input[type='range'] {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid #34d399;
+  outline-offset: 3px;
+}
+
+.victory-glow {
+  background:
+    radial-gradient(ellipse at 40% 20%, #34d39922, transparent 65%),
+    radial-gradient(ellipse at 70% 85%, #fcd34d12, transparent 60%);
+}
+
+canvas {
+  touch-action: none;
+}
