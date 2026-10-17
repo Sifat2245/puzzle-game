@@ -3,6 +3,7 @@ import { BOT_PROFILES, PUZZLE_CATALOG } from '../data/puzzles.js';
 import { compressImageFileToDataUrl } from '../utils/puzzleCanvas.js';
 import {
   createRoomCode,
+  createGameId,
   getInitialRoom,
   isValidRoomCode,
   normalizeRoomCode,
@@ -20,12 +21,12 @@ export function usePuzzleGame() {
   const [roomCode, setRoomCode] = useState(initialRoom.code);
   const [joinedViaLinkBanner, setJoinedViaLinkBanner] = useState(initialRoom.invited);
   const [activeScreen, setActiveScreen] = useState('landing');
-  const [myPlayerId] = useState(() => crypto.randomUUID());
-  const [myName, setMyName] = useState('Player 1');
+  const [myPlayerId] = useState(createGameId);
+  const [myName, setMyName] = useState('খেলোয়াড় ১');
   const [myColor, setMyColor] = useState('#38bdf8');
   const [puzzleId, setPuzzleId] = useState(PUZZLE_CATALOG[0].id);
   const [customImageSrc, setCustomImageSrc] = useState(null);
-  const [customImageTitle, setCustomImageTitle] = useState('Custom Photo');
+  const [customImageTitle, setCustomImageTitle] = useState('নিজের ছবি');
   const [photoSyncBanner, setPhotoSyncBanner] = useState('');
   const [targetPieceCount, setTargetPieceCount] = useState(48);
   const [botCount, setBotCount] = useState(1);
@@ -90,7 +91,7 @@ export function usePuzzleGame() {
   const playSound = useSound(soundEnabled);
 
   const addToast = useCallback((text, color = '#34d399') => {
-    const id = crypto.randomUUID();
+    const id = createGameId();
     setToasts((previous) => [...previous.slice(-2), { id, text, color }]);
     setTimeout(() => setToasts((previous) => previous.filter((item) => item.id !== id)), 3100);
   }, []);
@@ -114,6 +115,7 @@ export function usePuzzleGame() {
   );
   const connectionStatus = network.status;
   const isHost = network.isHost;
+  const canLaunch = isHost || network.isConnected;
 
   const engine = usePuzzleEngine({
     gameRef,
@@ -238,7 +240,7 @@ export function usePuzzleGame() {
     remoteStateRef.current = state;
     setPuzzleId(state.puzzleId || PUZZLE_CATALOG[0].id);
     setCustomImageSrc(state.customImageSrc || null);
-    setCustomImageTitle(state.customImageTitle || 'Custom Photo');
+    setCustomImageTitle(state.customImageTitle || 'নিজের ছবি');
     setTargetPieceCount(state.pieceCount);
     setBotCount(state.botCount || 0);
     const game = gameRef.current;
@@ -272,7 +274,7 @@ export function usePuzzleGame() {
       try {
         await buildPuzzleBoard(state.imageSrc, state.pieceCount, state.roundSeed, state.pieces);
       } catch {
-        addToast('Could not load the host’s puzzle. Try reconnecting.', '#f87171');
+        addToast('রুমের পাজল লোড হয়নি। আবার যুক্ত হয়ে দেখুন।', '#f87171');
       } finally {
         if (generation === roomGenerationRef.current && state.roundSeed === game.roundSeed)
           setIsLoading(false);
@@ -305,7 +307,7 @@ export function usePuzzleGame() {
         isBot: false,
       });
       syncPlayersUI();
-      if (!previous) addToast(`${message.player.name} joined the room!`, message.player.color);
+      if (!previous) addToast(`${message.player.name} রুমে এসেছেন!`, message.player.color);
     } else if (message.type === 'CURSOR') {
       const player = game.players.get(message.senderId);
       if (player)
@@ -318,6 +320,13 @@ export function usePuzzleGame() {
     } else if (message.type === 'PIECE_DRAG') {
       const piece = game.pieces[message.pieceId];
       if (!piece || game.isCompleted) return;
+      const members = Array.from(game.groups.get(piece.groupId) || [], (id) => game.pieces[id]);
+      if (
+        members.some(
+          (member) => member.inPlace || (member.lockedBy && member.lockedBy !== message.senderId),
+        )
+      )
+        return;
       const dx = message.x - piece.x;
       const dy = message.y - piece.y;
       game.groups.get(piece.groupId)?.forEach((id) => {
@@ -333,12 +342,18 @@ export function usePuzzleGame() {
     } else if (message.type === 'PIECE_DROP') {
       const piece = game.pieces[message.pieceId];
       if (piece) {
+        const dx = message.x - piece.x;
+        const dy = message.y - piece.y;
         game.groups.get(piece.groupId)?.forEach((id) => {
+          if (Number.isFinite(dx) && Number.isFinite(dy)) {
+            game.pieces[id].x += dx;
+            game.pieces[id].y += dy;
+          }
           game.pieces[id].lockedBy = null;
         });
-        checkAndSnapGroup(piece, game.players.get(message.senderId));
+        if (!message.cancelled)
+          checkAndSnapGroup(piece, game.players.get(message.senderId), { touch: message.touch });
       }
-      if (message.pieces) applySerializedPieces(message.pieces);
     } else if (message.type === 'BOARD_SYNC') {
       if (message.players)
         message.players.forEach((player) => game.players.set(player.id, { ...player }));
@@ -358,7 +373,7 @@ export function usePuzzleGame() {
     } else if (message.type === 'CHAT') {
       setChatMessages((previous) => [
         ...previous,
-        { id: crypto.randomUUID(), sender: message.name, color: message.color, text: message.text },
+        { id: createGameId(), sender: message.name, color: message.color, text: message.text },
       ]);
     } else if (message.type === 'EMOTE') {
       game.particles.push({
@@ -400,7 +415,7 @@ export function usePuzzleGame() {
   async function startRound(imageSrc = activeImageSrc, title = activePuzzleTitle) {
     if (!network.isHostRef.current) return;
     const game = gameRef.current;
-    const seed = crypto.randomUUID();
+    const seed = createGameId();
     const generation = roomGenerationRef.current;
     Object.assign(game, {
       roundSeed: seed,
@@ -429,7 +444,7 @@ export function usePuzzleGame() {
       const built = await buildPuzzleBoard(imageSrc, targetPieceCount, seed);
       if (built) broadcastNetworkEvent({ type: 'ROOM_STATE', state: snapshotRef.current() });
     } catch {
-      addToast('Could not load this puzzle. Choose another image and try again.', '#f87171');
+      addToast('পাজলটি লোড হয়নি। অন্য ছবি বেছে আবার চেষ্টা করুন।', '#f87171');
     } finally {
       if (generation === roomGenerationRef.current && game.roundSeed === seed) setIsLoading(false);
     }
@@ -451,14 +466,14 @@ export function usePuzzleGame() {
     if (!file || !network.isHostRef.current) return;
     try {
       const image = await compressImageFileToDataUrl(file);
-      const title = file.name.replace(/\.[^.]+$/, '') || 'Custom Photo';
+      const title = file.name.replace(/\.[^.]+$/, '') || 'নিজের ছবি';
       setCustomImageSrc(image);
       setCustomImageTitle(title);
       setPuzzleId('custom-photo');
-      setPhotoSyncBanner(`“${title}” is ready to play with your friends.`);
+      setPhotoSyncBanner(`“${title}” বন্ধুদের সঙ্গে খেলার জন্য তৈরি।`);
       if (activeScreen === 'board') await startRound(image, title);
     } catch {
-      addToast('Could not read this image. Please choose another photo.', '#f87171');
+      addToast('ছবিটি খোলা যায়নি। অন্য একটি ছবি বাছুন।', '#f87171');
     }
     event.target.value = '';
   }
@@ -467,17 +482,17 @@ export function usePuzzleGame() {
     try {
       await copyText(getShareableRoomLink());
       setCopiedLinkNotice(true);
-      addToast('Invite link copied!');
+      addToast('আমন্ত্রণ লিংক কপি হয়েছে!');
       setTimeout(() => setCopiedLinkNotice(false), 2500);
     } catch {
-      addToast('Could not copy. Select and copy the invite link manually.', '#f87171');
+      addToast('কপি হয়নি। আমন্ত্রণ লিংকটি বেছে নিজে কপি করুন।', '#f87171');
     }
   }
 
   function joinRoom(value) {
     const code = normalizeRoomCode(value);
     if (!isValidRoomCode(code)) {
-      addToast('Enter a room code with at least 3 letters or numbers.', '#f87171');
+      addToast('রুম কোডে অন্তত ৩টি ইংরেজি অক্ষর বা সংখ্যা দিন।', '#f87171');
       return false;
     }
     setRoomCode(code);
@@ -526,6 +541,7 @@ export function usePuzzleGame() {
     isHostRef: network.isHostRef,
     broadcastNetworkEvent,
     serializePieces,
+    centerCamera: engine.centerCamera,
   });
 
   return {
@@ -540,6 +556,7 @@ export function usePuzzleGame() {
     createNewRoom,
     joinRoom,
     isHost,
+    canLaunch,
     reconnect: network.reconnect,
     connectionStatus,
     myPlayerId,

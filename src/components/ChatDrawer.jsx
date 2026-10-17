@@ -1,3 +1,4 @@
+import { bnNumber } from '../utils/bangla.js';
 import React from 'react';
 import { X } from 'lucide-react';
 import { useGame } from '../context/GameContext.jsx';
@@ -26,7 +27,7 @@ export default function ChatDrawer() {
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400" />
             <span className="text-xs font-semibold uppercase tracking-wider text-gray-200">
-              Room {roomCode} Team &amp; Chat
+              রুম {roomCode} দলের আড্ডা
             </span>
           </div>
           <button
@@ -44,7 +45,9 @@ export default function ChatDrawer() {
                 <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
                 <span>{p.name}</span>
               </span>
-              <span className="font-mono text-emerald-400 font-semibold">{p.score || 0} pts</span>
+              <span className="font-mono text-emerald-400 font-semibold">
+                {bnNumber(p.score || 0)} পয়েন্ট
+              </span>
             </div>
           ))}
         </div>
@@ -85,14 +88,14 @@ export default function ChatDrawer() {
             maxLength={140}
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
-            placeholder="Message friends..."
+            placeholder="বন্ধুদের কিছু বলুন…"
             className="flex-1 bg-black/40 border border-white/15 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-400"
           />
           <button
             type="submit"
             className="bg-sky-600 hover:bg-sky-500 text-white font-medium px-3 py-1.5 rounded-lg text-xs transition cursor-pointer"
           >
-            Send
+            পাঠান
           </button>
         </form>
       </div>

@@ -1,6 +1,7 @@
 import { formatTimer } from './sharing.js';
+import { bnNumber, resultAchievement, SITE_NAME, SITE_TAGLINE } from './bangla.js';
 
-function roundedBox(context, x, y, width, height, radius, fill) {
+function box(context, x, y, width, height, radius, fill) {
   context.beginPath();
   context.roundRect(x, y, width, height, radius);
   context.fillStyle = fill;
@@ -8,15 +9,26 @@ function roundedBox(context, x, y, width, height, radius, fill) {
 }
 
 function fitText(context, text, maxWidth) {
-  let value = String(text);
-  if (context.measureText(value).width <= maxWidth) return value;
-  while (value.length && context.measureText(`${value}…`).width > maxWidth)
-    value = value.slice(0, -1);
-  return `${value}…`;
+  const segments =
+    typeof Intl.Segmenter === 'function'
+      ? Array.from(
+          new Intl.Segmenter('bn', { granularity: 'grapheme' }).segment(String(text)),
+          (item) => item.segment,
+        )
+      : Array.from(String(text));
+  if (context.measureText(segments.join('')).width <= maxWidth) return segments.join('');
+  while (segments.length && context.measureText(`${segments.join('')}…`).width > maxWidth)
+    segments.pop();
+  return `${segments.join('')}…`;
 }
 
-// Render directly to canvas so the downloaded PNG needs no screenshot service.
 export async function createResultCard(result) {
+  // Load the Bengali glyphs before drawing; otherwise an exported PNG can contain fallback boxes.
+  await Promise.all(
+    [400, 500, 600, 700].map((weight) =>
+      document.fonts.load(`${weight} 32px "Hind Siliguri"`, `${SITE_TAGLINE} ০১২৩৪৫৬৭৮৯ Player`),
+    ),
+  );
   const image = new Image();
   image.src = result.imageSrc;
   await image.decode();
@@ -24,100 +36,109 @@ export async function createResultCard(result) {
   canvas.width = 1080;
   canvas.height = 1350;
   const context = canvas.getContext('2d');
-  const background = context.createLinearGradient(0, 0, 1080, 1350);
-  background.addColorStop(0, '#0c2431');
-  background.addColorStop(0.65, '#102a2b');
-  background.addColorStop(1, '#07171e');
-  context.fillStyle = background;
+  const font = (size, weight = 600) => {
+    context.font = `${weight} ${size}px "Hind Siliguri", sans-serif`;
+  };
+  context.fillStyle = '#faf4df';
   context.fillRect(0, 0, 1080, 1350);
 
-  // Small, deterministic confetti marks also appear in the exported artwork.
-  const colors = ['#6ee7b7', '#fcd76d', '#83c9df'];
-  for (let index = 0; index < 36; index++) {
-    const x = (index * 173 + 23) % 1080;
-    const y = (index * 97 + 9) % 1330;
+  // A warm, playful poster with little confetti details around the finished puzzle.
+  for (let row = 0; row < 34; row++) {
+    for (let column = 0; column < 28; column++) {
+      context.beginPath();
+      context.arc(column * 40 + 14, row * 40 + 14, 1.3, 0, Math.PI * 2);
+      context.fillStyle = '#c9bc9236';
+      context.fill();
+    }
+  }
+  context.beginPath();
+  context.roundRect(28, 28, 1024, 1294, 34);
+  context.strokeStyle = '#17483b';
+  context.lineWidth = 3;
+  context.stroke();
+  for (let index = 0; index < 26; index++) {
     context.save();
-    context.translate(x, y);
+    context.translate(((index * 173 + 48) % 1010) + 20, ((index * 97 + 142) % 1100) + 60);
     context.rotate(index * 1.3);
-    context.globalAlpha = 0.25;
-    roundedBox(context, 0, 0, 5, 13, 2, colors[index % 3]);
+    box(context, 0, 0, 6, 15, 2, ['#38a28277', '#ed906577', '#d9ae3477'][index % 3]);
     context.restore();
   }
 
   context.textAlign = 'center';
-  context.fillStyle = '#99b8bb';
-  context.font = '700 23px sans-serif';
-  context.fillText('MULTIPLAYER PUZZLE GAME', 540, 82);
-  context.fillStyle = '#f6d783';
-  context.font = '700 19px sans-serif';
-  context.fillText('A LITTLE TEAMWORK. A BIG WIN.', 540, 145);
-  context.fillStyle = '#f8faf6';
-  context.font = '900 88px sans-serif';
-  context.fillText('PIECE BY PIECE.', 540, 247);
-  context.fillStyle = '#6ee7b7';
-  context.fillText('WE DID IT.', 540, 338);
+  context.fillStyle = '#526459';
+  font(26, 600);
+  context.fillText(SITE_NAME, 540, 88);
+  box(context, 285, 116, 510, 54, 27, '#f6d270');
+  context.fillStyle = '#5f430d';
+  font(28, 700);
+  context.fillText(resultAchievement(result), 540, 153);
+  context.fillStyle = '#2a3932';
+  font(54, 500);
+  context.fillText('জীবন এলোমেলো?', 540, 243);
+  context.fillStyle = '#126b50';
+  font(90, 700);
+  context.fillText('পাজল তো মিলল!', 540, 335);
 
-  roundedBox(context, 64, 385, 952, 466, 28, '#dceae1');
+  box(context, 68, 375, 944, 458, 28, '#17483b');
+  box(context, 78, 385, 924, 438, 20, '#ffffff');
   context.save();
   context.beginPath();
-  context.roundRect(76, 397, 928, 442, 18);
+  context.roundRect(90, 397, 900, 414, 14);
   context.clip();
-  const scale = Math.min(928 / image.width, 442 / image.height);
+  const scale = Math.min(900 / image.width, 414 / image.height);
   const width = image.width * scale;
   const height = image.height * scale;
-  context.fillStyle = '#102a2b';
-  context.fillRect(76, 397, 928, 442);
-  context.drawImage(image, 76 + (928 - width) / 2, 397 + (442 - height) / 2, width, height);
+  context.drawImage(image, 90 + (900 - width) / 2, 397 + (414 - height) / 2, width, height);
   context.restore();
-  roundedBox(context, 362, 813, 356, 62, 31, '#6ee7b7');
-  context.fillStyle = '#092b26';
-  context.font = '800 22px sans-serif';
-  context.fillText('100% COMPLETE', 540, 853);
-  context.font = '700 32px sans-serif';
-  context.fillStyle = '#f8faf6';
-  context.fillText(fitText(context, result.title, 900), 540, 935);
+  box(context, 315, 799, 450, 56, 28, '#126b50');
+  context.fillStyle = '#ffffff';
+  font(29, 700);
+  context.fillText('সব টুকরো একসঙ্গে!', 540, 839);
+  context.fillStyle = '#263f33';
+  font(38, 700);
+  context.fillText(fitText(context, result.title, 900), 540, 914);
 
-  const humans = result.players.filter((player) => !player.isBot).length;
-  const bots = result.players.length - humans;
+  const humans = result.players.filter((player) => !player.isBot);
+  const bots = result.players.length - humans.length;
   const stats = [
-    ['TIME', formatTimer(result.elapsedSeconds)],
-    ['PIECES', result.total],
-    ['PLAYERS', humans],
+    ['সময় লেগেছে', formatTimer(result.elapsedSeconds)],
+    ['টুকরো', bnNumber(result.total)],
+    ['খেলোয়াড়', bnNumber(humans.length)],
   ];
   stats.forEach(([label, value], index) => {
-    const x = 64 + index * 324;
-    roundedBox(context, x, 974, 304, 124, 18, '#ffffff0c');
-    context.fillStyle = '#92b1b4';
-    context.font = '700 17px sans-serif';
-    context.fillText(label, x + 152, 1009);
-    context.fillStyle = '#f8faf6';
-    context.font = '800 42px sans-serif';
-    context.fillText(String(value), x + 152, 1063);
+    const x = 70 + index * 323;
+    box(context, x, 948, 294, 120, 20, '#e7eddc');
+    context.fillStyle = '#66745d';
+    font(23, 500);
+    context.fillText(label, x + 147, 985);
+    context.fillStyle = '#17483b';
+    font(46, 700);
+    context.fillText(value, x + 147, 1040);
   });
 
-  context.fillStyle = '#a9c6c1';
-  context.font = '500 21px sans-serif';
-  const names = result.players
-    .filter((player) => !player.isBot)
-    .map((player) => player.name)
-    .join(' + ');
-  context.fillText(fitText(context, names || 'A puzzle well played', 920), 540, 1154);
+  context.fillStyle = '#455e4d';
+  font(26, 600);
+  context.fillText(
+    fitText(context, humans.map((player) => player.name).join(' + ') || 'পাজলবাজ দল', 920),
+    540,
+    1120,
+  );
   if (bots) {
-    context.fillStyle = '#7e9c9f';
-    context.font = '400 18px sans-serif';
-    context.fillText(`With ${bots} bot helper${bots === 1 ? '' : 's'}`, 540, 1190);
+    context.fillStyle = '#7e816a';
+    font(23, 400);
+    context.fillText(`সঙ্গে ছিল ${bnNumber(bots)}টি সাহায্যকারী বট`, 540, 1157);
   }
-  context.fillStyle = '#f6d783';
-  context.font = '700 25px sans-serif';
-  context.fillText('GOOD FRIENDS. GREAT FINISH.', 540, 1260);
-  context.fillStyle = '#7e9c9f';
-  context.font = '400 18px sans-serif';
-  context.fillText('Your turn. Can you beat our time?', 540, 1300);
+  context.fillStyle = '#6f674f';
+  font(30, 500);
+  context.fillText('জীবনের পাজল না মিললেও', 540, 1230);
+  context.fillStyle = '#126b50';
+  font(42, 700);
+  context.fillText('গেমের পাজল মিলবে।', 540, 1283);
 
   return new Promise((resolve, reject) =>
     canvas.toBlob((blob) => {
       if (blob) resolve(blob);
-      else reject(new Error('Could not create the result card.'));
+      else reject(new Error('ফলাফলের কার্ড তৈরি হয়নি।'));
     }, 'image/png'),
   );
 }

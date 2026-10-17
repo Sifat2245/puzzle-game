@@ -71,6 +71,9 @@ export function renderPieceSprite(piece, sourceImage, pieceW, pieceH, boardW, bo
   sCtx.save();
   tracePiecePath(sCtx, padX, padY, pieceW, pieceH, piece.tabs);
   sCtx.clip();
+  // Keep transparent character artwork visible as solid, draggable puzzle pieces.
+  sCtx.fillStyle = '#fffdf6';
+  sCtx.fillRect(0, 0, cw, ch);
 
   const scaleX = sourceImage.width / boardW;
   const scaleY = sourceImage.height / boardH;

@@ -4,6 +4,7 @@
 
 body {
   margin: 0;
+  font-family: 'Hind Siliguri', sans-serif;
 }
 
 button:not(:disabled),
@@ -32,4 +33,21 @@ input:focus-visible {
 
 canvas {
   touch-action: none;
+}
+
+.game-toolbar button {
+  min-width: 36px;
+  min-height: 40px;
+  flex-shrink: 0;
+}
+
+.game-toolbar .zoom-controls button {
+  min-width: 28px;
+}
+
+@media (min-width: 1024px) {
+  .game-toolbar button {
+    min-height: 32px;
+    min-width: 28px;
+  }
 }

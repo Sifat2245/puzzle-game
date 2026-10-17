@@ -1,4 +1,7 @@
+import { bnNumber } from '../utils/bangla.js';
 import { useEffect } from 'react';
+import { tracePiecePath } from '../utils/puzzleCanvas.js';
+import { advanceBots } from '../utils/bots.js';
 
 export function useCanvasRenderer({
   activeScreen,
@@ -12,6 +15,7 @@ export function useCanvasRenderer({
   isHostRef,
   broadcastNetworkEvent,
   serializePieces,
+  centerCamera,
 }) {
   useEffect(() => {
     if (activeScreen !== 'board') return;
@@ -19,127 +23,53 @@ export function useCanvasRenderer({
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
+    let width = 0;
+    let height = 0;
+    let pixelRatio = 1;
     const handleResize = () => {
-      const parent = canvas.parentElement;
-      if (!parent) return;
-      const rect = parent.getBoundingClientRect();
-      canvas.width = rect.width;
-      canvas.height = rect.height;
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const ratio = Math.min(window.devicePixelRatio || 1, 2);
+      if (
+        !rect.width ||
+        !rect.height ||
+        (width === rect.width && height === rect.height && pixelRatio === ratio)
+      )
+        return;
+      width = rect.width;
+      height = rect.height;
+      pixelRatio = ratio;
+      canvas.width = Math.round(width * pixelRatio);
+      canvas.height = Math.round(height * pixelRatio);
+      if (gameRef.current.pieces.length) centerCamera();
     };
     handleResize();
+    const observer = new ResizeObserver(handleResize);
+    observer.observe(canvas.parentElement);
     window.addEventListener('resize', handleResize);
 
     let animId = null;
     let lastTime = performance.now();
-
-    const updateBots = (dt) => {
-      const g = gameRef.current;
-      if (!isHostRef.current) return;
-      if (g.isCompleted || g.pieces.length === 0) return;
-      const paceMult = botPace === 'fast' ? 1.75 : botPace === 'relaxed' ? 0.58 : 1.0;
-
-      g.bots.forEach((bot) => {
-        if (bot.carryingPieceId !== null) {
-          const p = g.pieces[bot.carryingPieceId];
-          if (!p || p.lockedBy !== bot.id) {
-            bot.carryingPieceId = null;
-            return;
-          }
-          const dx = bot.destPieceX - p.x;
-          const dy = bot.destPieceY - p.y;
-          const dist = Math.hypot(dx, dy);
-          const speed = 225 * paceMult;
-
-          if (dist <= speed * dt + 4) {
-            const stepX = bot.destPieceX - p.x;
-            const stepY = bot.destPieceY - p.y;
-            const grp = g.groups.get(p.groupId);
-            if (grp) {
-              grp.forEach((pid) => {
-                g.pieces[pid].x += stepX;
-                g.pieces[pid].y += stepY;
-                g.pieces[pid].lockedBy = null;
-              });
-            }
-            bot.x = p.x + g.pieceW * 0.5;
-            bot.y = p.y + g.pieceH * 0.5;
-            bot.carryingPieceId = null;
-            bot.cooldown = (2.6 + Math.random() * 2.2) / paceMult;
-            checkAndSnapGroup(p, bot);
-            broadcastNetworkEvent({
-              type: 'BOARD_SYNC',
-              pieces: serializePieces(),
-              players: Array.from(g.players.values()),
-            });
-          } else {
-            const vx = (dx / dist) * speed * dt;
-            const vy = (dy / dist) * speed * dt;
-            const grp = g.groups.get(p.groupId);
-            if (grp) {
-              grp.forEach((pid) => {
-                g.pieces[pid].x += vx;
-                g.pieces[pid].y += vy;
-              });
-            }
-            bot.x = p.x + g.pieceW * 0.55;
-            bot.y = p.y + g.pieceH * 0.55;
-          }
-        } else {
-          bot.cooldown -= dt;
-          bot.x += (bot.targetX - bot.x) * Math.min(1, dt * 4.5);
-          bot.y += (bot.targetY - bot.y) * Math.min(1, dt * 4.5);
-
-          if (bot.cooldown <= 0) {
-            const candidates = g.pieces.filter((p) => {
-              if (p.lockedBy) return false;
-              if (edgesOnly && !p.isEdge) return false;
-              const grp = g.groups.get(p.groupId);
-              return grp && grp.size === 1 && !p.inPlace;
-            });
-            if (candidates.length > 0) {
-              const chosen = candidates[Math.floor(Math.random() * candidates.length)];
-              chosen.lockedBy = bot.id;
-              chosen.lockedColor = bot.color;
-              chosen.lockedName = bot.name;
-              bot.carryingPieceId = chosen.id;
-
-              let destX = chosen.c * g.pieceW;
-              let destY = chosen.r * g.pieceH;
-              const dirs = [
-                { dr: -1, dc: 0 },
-                { dr: 1, dc: 0 },
-                { dr: 0, dc: -1 },
-                { dr: 0, dc: 1 },
-              ];
-              for (const { dr, dc } of dirs) {
-                const nr = chosen.r + dr;
-                const nc = chosen.c + dc;
-                if (nr >= 0 && nr < g.rows && nc >= 0 && nc < g.cols) {
-                  const nb = g.pieces[nr * g.cols + nc];
-                  const nbGrp = g.groups.get(nb?.groupId);
-                  if (nb && nbGrp && (nbGrp.size > 1 || nb.inPlace) && !nb.lockedBy) {
-                    destX = nb.x - dc * g.pieceW;
-                    destY = nb.y - dr * g.pieceH;
-                    break;
-                  }
-                }
-              }
-              bot.destPieceX = destX;
-              bot.destPieceY = destY;
-            } else {
-              bot.cooldown = 2.0;
-            }
-          }
-        }
-      });
-    };
 
     const renderFrame = (now) => {
       const dt = Math.min(0.05, (now - lastTime) / 1000);
       lastTime = now;
       const g = gameRef.current;
 
-      updateBots(dt);
+      if (isHostRef.current) {
+        advanceBots(g, dt, {
+          pace: botPace,
+          onSnap: (piece, bot) => {
+            checkAndSnapGroup(piece, bot);
+            broadcastNetworkEvent({
+              type: 'BOARD_SYNC',
+              pieces: serializePieces(),
+              players: Array.from(g.players.values()),
+            });
+          },
+        });
+      }
+      // Every frame starts in CSS pixel coordinates, including on Retina screens.
+      ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
 
       // Update particles
       for (let i = g.particles.length - 1; i >= 0; i--) {
@@ -165,21 +95,21 @@ export function useCanvasRenderer({
       } else {
         ctx.fillStyle = '#6e7065';
       }
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, width, height);
 
       // Vignette
       const grad = ctx.createRadialGradient(
-        canvas.width * 0.5,
-        canvas.height * 0.5,
-        Math.min(canvas.width, canvas.height) * 0.25,
-        canvas.width * 0.5,
-        canvas.height * 0.5,
-        Math.max(canvas.width, canvas.height) * 0.75,
+        width * 0.5,
+        height * 0.5,
+        Math.min(width, height) * 0.25,
+        width * 0.5,
+        height * 0.5,
+        Math.max(width, height) * 0.75,
       );
       grad.addColorStop(0, 'rgba(0,0,0,0)');
       grad.addColorStop(1, 'rgba(0,0,0,0.28)');
       ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, width, height);
 
       // Camera transform
       ctx.translate(g.camX, g.camY);
@@ -243,7 +173,7 @@ export function useCanvasRenderer({
         ctx.arc(pg.x, pg.y, pg.radius * 0.55, 0, Math.PI * 2);
         ctx.stroke();
 
-        ctx.font = `600 ${Math.round(12 / g.camZoom)}px Inter, sans-serif`;
+        ctx.font = `600 ${Math.round(12 / g.camZoom)}px "Hind Siliguri", sans-serif`;
         ctx.fillStyle = '#ffffff';
         ctx.fillText(`📍 ${pg.name}`, pg.x + 10 / g.camZoom, pg.y - 10 / g.camZoom);
         ctx.restore();
@@ -255,7 +185,7 @@ export function useCanvasRenderer({
         ctx.save();
         ctx.globalAlpha = alpha;
         if (pt.emote) {
-          ctx.font = `bold ${Math.round(16 / g.camZoom)}px Inter, sans-serif`;
+          ctx.font = `bold ${Math.round(16 / g.camZoom)}px "Hind Siliguri", sans-serif`;
           ctx.fillStyle = '#ffffff';
           ctx.fillText(pt.emote, pt.x, pt.y);
         } else {
@@ -290,8 +220,8 @@ export function useCanvasRenderer({
         ctx.strokeStyle = '#ffffff';
         ctx.stroke();
 
-        const label = `${player.name} (${player.score || 0})`;
-        ctx.font = '600 11px Inter, sans-serif';
+        const label = `${player.name} (${bnNumber(player.score || 0)})`;
+        ctx.font = '600 11px "Hind Siliguri", sans-serif';
         const tw = ctx.measureText(label).width;
         ctx.fillStyle = 'rgba(20, 22, 19, 0.88)';
         ctx.beginPath();
@@ -316,8 +246,20 @@ export function useCanvasRenderer({
 
     animId = requestAnimationFrame(renderFrame);
     return () => {
+      observer.disconnect();
       window.removeEventListener('resize', handleResize);
       if (animId) cancelAnimationFrame(animId);
     };
-  }, [activeScreen, edgesOnly, showGuideFrame, botPace, myPlayerId, checkAndSnapGroup]);
+  }, [
+    activeScreen,
+    edgesOnly,
+    showGuideFrame,
+    botPace,
+    myPlayerId,
+    checkAndSnapGroup,
+    isHostRef,
+    broadcastNetworkEvent,
+    serializePieces,
+    centerCamera,
+  ]);
 }

@@ -9,7 +9,8 @@ export function usePeerRoom({ roomCode, playerId, getPlayer, getSnapshot, onMess
   const connections = useRef(new Map());
   const isHostRef = useRef(false);
   const [isHost, setIsHost] = useState(false);
-  const [status, setStatus] = useState('Connecting to room…');
+  const [isConnected, setIsConnected] = useState(false);
+  const [status, setStatus] = useState('রুমের সঙ্গে সংযোগ হচ্ছে…');
   const [attempt, setAttempt] = useState(0);
 
   const send = useCallback(
@@ -29,7 +30,8 @@ export function usePeerRoom({ roomCode, playerId, getPlayer, getSnapshot, onMess
     const roomConnections = connections.current;
     isHostRef.current = false;
     setIsHost(false);
-    setStatus('Connecting to room…');
+    setIsConnected(false);
+    setStatus('রুমের সঙ্গে সংযোগ হচ্ছে…');
 
     function sendSnapshot(connection) {
       const state = latest.current.getSnapshot();
@@ -43,6 +45,7 @@ export function usePeerRoom({ roomCode, playerId, getPlayer, getSnapshot, onMess
         if (disposed) return connection.close();
         clearTimeout(connectionTimeout);
         roomConnections.set(connection.peer, connection);
+        setIsConnected(true);
         connection.send({
           type: 'HELLO',
           player: latest.current.getPlayer(),
@@ -50,7 +53,7 @@ export function usePeerRoom({ roomCode, playerId, getPlayer, getSnapshot, onMess
           senderId: playerId,
         });
         if (isHostRef.current) sendSnapshot(connection);
-        else setStatus(`Connected to room ${roomCode}`);
+        else setStatus(`রুমে যুক্ত আছেন: ${roomCode}`);
       });
       connection.on('data', (message) => {
         if (disposed || !message || message.roomCode !== roomCode || message.senderId === playerId)
@@ -80,11 +83,12 @@ export function usePeerRoom({ roomCode, playerId, getPlayer, getSnapshot, onMess
             if (other.open) other.send(message);
           });
         } else if (!isHostRef.current) {
-          setStatus('Host disconnected. Ask them to reopen the room, then reconnect.');
+          setIsConnected(false);
+          setStatus('রুমের মালিকের সংযোগ বিচ্ছিন্ন হয়েছে। তাঁকে রুম খুলতে বলে আবার যুক্ত হোন।');
         }
       });
       connection.on('error', () => {
-        if (!disposed) setStatus('Connection interrupted. Try reconnecting.');
+        if (!disposed) setStatus('সংযোগ বিচ্ছিন্ন হয়েছে। আবার যুক্ত হয়ে দেখুন।');
       });
     }
 
@@ -92,15 +96,15 @@ export function usePeerRoom({ roomCode, playerId, getPlayer, getSnapshot, onMess
       peer = new Peer();
       peer.on('open', () => {
         if (disposed) return;
-        setStatus(`Joining room ${roomCode}…`);
+        setStatus(`রুমে ঢুকছেন: ${roomCode}…`);
         register(peer.connect(roomPeerId(roomCode), { reliable: true }));
         connectionTimeout = setTimeout(() => {
           if (!disposed && roomConnections.size === 0)
-            setStatus('Could not reach the host. Try reconnecting.');
+            setStatus('রুমের মালিককে পাওয়া যায়নি। আবার যুক্ত হয়ে দেখুন।');
         }, 12000);
       });
       peer.on('error', () => {
-        if (!disposed) setStatus('Could not reach the room. Try reconnecting.');
+        if (!disposed) setStatus('রুমে ঢোকা যায়নি। আবার যুক্ত হয়ে দেখুন।');
       });
     }
 
@@ -109,7 +113,7 @@ export function usePeerRoom({ roomCode, playerId, getPlayer, getSnapshot, onMess
       if (disposed) return;
       isHostRef.current = true;
       setIsHost(true);
-      setStatus(`Room ${roomCode} is ready`);
+      setStatus(`রুম ${roomCode} তৈরি`);
     });
     peer.on('connection', register);
     peer.on('error', (error) => {
@@ -120,7 +124,7 @@ export function usePeerRoom({ roomCode, playerId, getPlayer, getSnapshot, onMess
       } else {
         isHostRef.current = true;
         setIsHost(true);
-        setStatus('Multiplayer unavailable. You can play solo or reconnect.');
+        setStatus('বন্ধুদের সঙ্গে সংযোগ হয়নি। একা খেলুন বা আবার যুক্ত হোন।');
       }
     });
 
@@ -140,5 +144,12 @@ export function usePeerRoom({ roomCode, playerId, getPlayer, getSnapshot, onMess
     };
   }, [roomCode, playerId, attempt]);
 
-  return { send, isHost, isHostRef, status, reconnect: () => setAttempt((value) => value + 1) };
+  return {
+    send,
+    isHost,
+    isHostRef,
+    isConnected,
+    status,
+    reconnect: () => setAttempt((value) => value + 1),
+  };
 }

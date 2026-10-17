@@ -1,7 +1,9 @@
+import { bnNumber, formatDuration, SITE_NAME, SITE_TAGLINE } from './bangla.js';
+
 export function formatTimer(seconds) {
   const value = Math.max(0, Math.floor(seconds));
   const minutes = Math.floor(value / 60);
-  return `${minutes}:${String(value % 60).padStart(2, '0')}`;
+  return bnNumber(`${minutes}:${String(value % 60).padStart(2, '0')}`);
 }
 
 export async function copyText(text) {
@@ -27,5 +29,5 @@ export async function copyText(text) {
 export function resultCaption(result) {
   const humans = result.players.filter((player) => !player.isBot).length;
   const bots = result.players.filter((player) => player.isBot).length;
-  return `We did it! 🧩 ${result.title} — ${result.total} pieces in ${formatTimer(result.elapsedSeconds)}. ${humans} player${humans === 1 ? '' : 's'}${bots ? ` + ${bots} bot helper${bots === 1 ? '' : 's'}` : ''}. Can you beat our time?\nMultiplayer Puzzle Game`;
+  return `জীবন এলোমেলো? পাজল তো মিলল! 🧩\n“${result.title}” পাজলের ${bnNumber(result.total)} টুকরো মিলিয়েছি ${formatDuration(result.elapsedSeconds)} সময়ে।\nদলে ${bnNumber(humans)} জন খেলোয়াড়${bots ? ` আর ${bnNumber(bots)}টি সাহায্যকারী বট` : ''}।\nএবার আপনার পালা—আমাদের সময়কে হারাতে পারবেন?\n${SITE_TAGLINE}\n${SITE_NAME}`;
 }

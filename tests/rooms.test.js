@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createRoomCode,
+  createGameId,
   getInitialRoom,
   isValidRoomCode,
   normalizeRoomCode,
@@ -9,6 +10,19 @@ import {
   roomPeerId,
 } from '../src/utils/rooms.js';
 import { formatTimer, resultCaption } from '../src/utils/sharing.js';
+
+test('game identifiers work without the secure-context UUID API', () => {
+  const descriptor = Object.getOwnPropertyDescriptor(crypto, 'randomUUID');
+  Object.defineProperty(crypto, 'randomUUID', { value: undefined, configurable: true });
+  try {
+    const first = createGameId();
+    assert.match(first, /^[a-f0-9]{32}$/);
+    assert.notEqual(first, createGameId());
+  } finally {
+    if (descriptor) Object.defineProperty(crypto, 'randomUUID', descriptor);
+    else delete crypto.randomUUID;
+  }
+});
 
 test('fresh visits get different readable room codes', () => {
   const codes = Array.from({ length: 100 }, createRoomCode);
@@ -43,7 +57,7 @@ test('different room codes do not collapse onto the same WebRTC identifier', () 
 
 test('results show the frozen time and distinguish bot helpers from people', () => {
   const caption = resultCaption({
-    title: 'Beach Sunrise',
+    title: 'স্পাইডার-ম্যান',
     total: 24,
     elapsedSeconds: 125,
     players: [
@@ -51,8 +65,9 @@ test('results show the frozen time and distinguish bot helpers from people', () 
       { name: 'Maya', isBot: true },
     ],
   });
-  assert.match(caption, /24 pieces in 2:05/);
-  assert.match(caption, /1 player \+ 1 bot helper/);
-  assert.match(caption, /Multiplayer Puzzle Game/);
-  assert.equal(formatTimer(3605), '60:05');
+  assert.match(caption, /২৪ টুকরো/);
+  assert.match(caption, /২ মিনিট ৫ সেকেন্ড/);
+  assert.match(caption, /১ জন খেলোয়াড় আর ১টি সাহায্যকারী বট/);
+  assert.match(caption, /মাল্টিপ্লেয়ার পাজল গেম/);
+  assert.equal(formatTimer(3605), '৬০:০৫');
 });

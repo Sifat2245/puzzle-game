@@ -18,12 +18,13 @@ export default function GameMenu() {
     myPlayerId,
     broadcastNetworkEvent,
     serializePieces,
+    setShowHelpModal,
   } = useGame();
   return (
     showLeftMenu && (
       <div className="absolute top-2 left-2 w-64 bg-[#2e302b]/95 backdrop-blur-md rounded-xl shadow-2xl border border-white/15 p-3 z-30 text-xs space-y-1">
         <div className="font-semibold text-gray-100 pb-2 mb-1 border-b border-white/10 flex items-center justify-between">
-          <span>Multiplayer Puzzle Game Menu</span>
+          <span>পাজল খেলার মেনু</span>
           <button onClick={() => setShowLeftMenu(false)} className="text-gray-400 hover:text-white">
             <X className="w-4 h-4" />
           </button>
@@ -36,7 +37,7 @@ export default function GameMenu() {
           className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-white/10 text-left text-gray-200 transition cursor-pointer"
         >
           <ImageIcon className="w-4 h-4 text-sky-400" />
-          <span>Landing Page / Change Puzzle</span>
+          <span>শুরুর পাতা / পাজল বদলান</span>
         </button>
         <button
           onClick={() => {
@@ -46,7 +47,7 @@ export default function GameMenu() {
           className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-white/10 text-left text-gray-200 transition cursor-pointer"
         >
           <Share2 className="w-4 h-4 text-emerald-400" />
-          <span>Copy invite link</span>
+          <span>আমন্ত্রণ লিংক কপি করুন</span>
         </button>
         <button
           onClick={() => {
@@ -70,7 +71,7 @@ export default function GameMenu() {
           className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-white/10 text-left text-sky-300 transition cursor-pointer"
         >
           <Sparkles className="w-4 h-4" />
-          <span>Hint: Snap One Piece Now</span>
+          <span>সাহায্য নিন: একটি টুকরো মিলিয়ে দিন</span>
         </button>
         <button
           disabled={!isHost}
@@ -81,7 +82,9 @@ export default function GameMenu() {
           className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-red-500/20 text-left text-red-300 transition cursor-pointer"
         >
           <RotateCcw className="w-4 h-4" />
-          <span>{isHost ? 'Restart puzzle for everyone' : 'Only the host can restart'}</span>
+          <span>
+            {isHost ? 'সবাই মিলে নতুন করে শুরু করুন' : 'শুধু রুমের মালিক আবার শুরু করতে পারেন'}
+          </span>
         </button>
         {result && (
           <button
@@ -91,14 +94,23 @@ export default function GameMenu() {
             }}
             className="w-full rounded-lg px-3 py-2 text-left text-amber-300 hover:bg-white/10"
           >
-            View result &amp; share
+            ফলাফল দেখুন ও শেয়ার করুন
           </button>
         )}
+        <button
+          onClick={() => {
+            setShowLeftMenu(false);
+            setShowHelpModal(true);
+          }}
+          className="w-full rounded-lg px-3 py-2 text-left text-gray-200 hover:bg-white/10"
+        >
+          যেভাবে খেলবেন
+        </button>
         <button
           onClick={createNewRoom}
           className="w-full rounded-lg px-3 py-2 text-left text-emerald-300 hover:bg-white/10"
         >
-          Create a new room
+          নতুন রুম খুলুন
         </button>
       </div>
     )

@@ -15,47 +15,39 @@ export default function RoomControls() {
   useEffect(() => setDraft(roomCode), [roomCode]);
 
   return (
-    <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-      <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600">
-          <Users size={15} /> Your room
+    <div className="landing-room">
+      <div className="landing-room-heading">
+        <span>
+          <Users size={15} aria-hidden="true" /> আপনার রুম
         </span>
-        <button
-          onClick={createNewRoom}
-          className="flex items-center gap-1 text-xs font-semibold text-sky-700 hover:text-sky-900"
-        >
-          <Plus size={14} /> New room
+        <button onClick={createNewRoom} className="landing-new-room">
+          <Plus size={14} /> নতুন রুম
         </button>
       </div>
-      <div className="text-center">
-        <p className="font-mono text-2xl font-black tracking-[0.12em] text-slate-900">{roomCode}</p>
-        <p className="mt-1 text-xs text-slate-500">Send an invite and solve it together.</p>
+      <div className="landing-room-code">
+        <p>{roomCode}</p>
+        <span>এই কোডেই জমুক পাজলের আড্ডা!</span>
       </div>
-      <button
-        onClick={handleCopyShareLink}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-500"
-      >
+      <button onClick={handleCopyShareLink} className="landing-copy-link">
         {copiedLinkNotice ? <Check size={16} /> : <Copy size={16} />}
-        {copiedLinkNotice ? 'Invite link copied!' : 'Copy invite link'}
+        {copiedLinkNotice ? 'আমন্ত্রণ লিংক কপি হয়েছে!' : 'আমন্ত্রণ লিংক কপি করুন'}
       </button>
       <input
         readOnly
-        aria-label="Room invite link"
+        aria-label="রুমের আমন্ত্রণ লিংক"
         value={getShareableRoomLink()}
         onFocus={(event) => event.target.select()}
-        className="w-full min-w-0 rounded-lg border border-slate-200 bg-white px-2.5 py-2 font-mono text-[11px] text-slate-500"
+        className="landing-input landing-room-link"
       />
       <form
         onSubmit={(event) => {
           event.preventDefault();
           joinRoom(draft);
         }}
-        className="border-t border-slate-200 pt-3"
+        className="landing-join-form"
       >
-        <label htmlFor="room-code" className="mb-2 block text-xs font-medium text-slate-600">
-          Have a friend’s room code?
-        </label>
-        <div className="flex gap-2">
+        <label htmlFor="room-code">বন্ধুর রুম কোড আছে?</label>
+        <div className="landing-join-inputs">
           <input
             id="room-code"
             value={draft}
@@ -64,13 +56,10 @@ export default function RoomControls() {
             placeholder="ABCD-EFGH"
             autoComplete="off"
             spellCheck={false}
-            className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-sm font-semibold uppercase text-slate-900 focus:border-sky-500 focus:outline-none"
+            className="landing-input landing-room-code-input"
           />
-          <button
-            type="submit"
-            className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-700"
-          >
-            Join
+          <button type="submit" className="landing-join-button">
+            ঢুকে পড়ুন
           </button>
         </div>
       </form>

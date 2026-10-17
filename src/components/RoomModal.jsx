@@ -1,3 +1,4 @@
+import { bnNumber } from '../utils/bangla.js';
 import React from 'react';
 import { Users, Copy, X } from 'lucide-react';
 import { useGame } from '../context/GameContext.jsx';
@@ -29,11 +30,11 @@ export default function RoomModal() {
           <div className="flex items-center gap-2">
             <Users className="w-5 h-5 text-emerald-400" />
             <h3 id="room-title" className="text-base font-bold">
-              Your multiplayer room
+              আপনাদের খেলার রুম
             </h3>
           </div>
           <button
-            aria-label="Close room settings"
+            aria-label="রুমের সেটিংস বন্ধ করুন"
             onClick={() => setShowMultiplayerModal(false)}
             className="text-gray-400 hover:text-white"
           >
@@ -43,14 +44,14 @@ export default function RoomModal() {
 
         <div className="bg-black/30 p-3.5 rounded-xl border border-white/10 space-y-2.5">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold uppercase text-gray-400">Invite link</span>
+            <span className="font-semibold uppercase text-gray-400">আমন্ত্রণ লিংক</span>
             <span className="text-emerald-300 font-medium">{connectionStatus}</span>
           </div>
           <div className="flex gap-2">
             <input
               type="text"
               readOnly
-              aria-label="Room invite link"
+              aria-label="রুমের আমন্ত্রণ লিংক"
               value={getShareableRoomLink()}
               className="min-w-0 flex-1 bg-black/50 border border-white/15 rounded-lg px-3 py-2 font-mono text-xs text-sky-300"
             />
@@ -59,7 +60,7 @@ export default function RoomModal() {
               className="bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition flex items-center gap-1.5 cursor-pointer"
             >
               <Copy className="w-3.5 h-3.5" />
-              <span>Copy Link</span>
+              <span>লিংক কপি</span>
             </button>
           </div>
         </div>
@@ -67,7 +68,7 @@ export default function RoomModal() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
           <div className="bg-black/25 p-3 rounded-xl border border-white/10 space-y-1.5">
             <label htmlFor="room-player-name" className="text-gray-400 block">
-              Your display name
+              আপনার নাম
             </label>
             <input
               type="text"
@@ -79,21 +80,21 @@ export default function RoomModal() {
             />
           </div>
           <div className="bg-black/25 p-3 rounded-xl border border-white/10 space-y-1.5">
-            <span className="text-gray-400 block">Bot helpers ({botCount})</span>
+            <span className="text-gray-400 block">সাহায্যকারী বট ({bnNumber(botCount)})</span>
             <div className="flex gap-2">
               <button
                 disabled={!isHost}
                 onClick={() => setBotCount((c) => Math.max(0, c - 1))}
                 className="flex-1 bg-white/10 hover:bg-white/20 py-1.5 rounded-lg cursor-pointer"
               >
-                - Remove Bot
+                − বট কমান
               </button>
               <button
                 disabled={!isHost}
                 onClick={() => setBotCount((c) => Math.min(4, c + 1))}
                 className="flex-1 bg-emerald-600/80 hover:bg-emerald-500 py-1.5 rounded-lg text-white cursor-pointer"
               >
-                + Add Bot
+                + বট বাড়ান
               </button>
             </div>
           </div>
@@ -101,16 +102,16 @@ export default function RoomModal() {
 
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
           <button onClick={reconnect} className="text-sky-300 hover:text-white">
-            Reconnect
+            আবার যুক্ত হোন
           </button>
           <button onClick={createNewRoom} className="text-emerald-300 hover:text-white">
-            Create a new room
+            নতুন রুম খুলুন
           </button>
           <button
             onClick={() => setShowMultiplayerModal(false)}
             className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-5 py-2 rounded-lg transition cursor-pointer"
           >
-            Done
+            ঠিক আছে
           </button>
         </div>
       </Modal>

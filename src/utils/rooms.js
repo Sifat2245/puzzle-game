@@ -1,5 +1,12 @@
 const ROOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
+// getRandomValues also works when a phone opens the dev site over local HTTP.
+export function createGameId() {
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
+    byte.toString(16).padStart(2, '0'),
+  ).join('');
+}
+
 export function createRoomCode() {
   const bytes = crypto.getRandomValues(new Uint8Array(8));
   const code = Array.from(bytes, (byte) => ROOM_ALPHABET[byte % ROOM_ALPHABET.length]).join('');

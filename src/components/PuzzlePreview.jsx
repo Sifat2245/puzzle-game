@@ -36,7 +36,7 @@ export default function PuzzlePreview() {
         >
           <span className="text-xs font-semibold text-gray-200 flex items-center gap-1.5">
             <Eye className="w-3.5 h-3.5 text-sky-400" />
-            <span>Box Lid Reference</span>
+            <span>মেলানোর জন্য আসল ছবি</span>
           </span>
           <button
             onClick={() => setShowPreview(false)}
@@ -48,7 +48,7 @@ export default function PuzzlePreview() {
         <div className="p-2 bg-[#1c1d1a]">
           <img
             src={activeImageSrc}
-            alt="Reference"
+            alt="পাজলের আসল ছবি"
             className="w-full h-auto rounded border border-white/10 object-cover"
           />
         </div>

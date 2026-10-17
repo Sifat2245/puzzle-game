@@ -1,6 +1,8 @@
+import { bnNumber } from '../utils/bangla.js';
 import { useCallback, useEffect, useRef } from 'react';
 import { SURFACE_THEMES } from '../data/puzzles.js';
 import { createSeededRandom, renderPieceSprite } from '../utils/puzzleCanvas.js';
+import { fitPuzzleCamera } from '../utils/camera.js';
 
 export function usePuzzleEngine({
   gameRef,
@@ -52,6 +54,9 @@ export function usePuzzleEngine({
       y: Math.round(p.y),
       groupId: p.groupId,
       inPlace: p.inPlace,
+      lockedBy: p.lockedBy,
+      lockedColor: p.lockedColor,
+      lockedName: p.lockedName,
     }));
   }, []);
 
@@ -90,7 +95,7 @@ export function usePuzzleEngine({
     const rand = customRand || Math.random;
     const loose = g.pieces.filter((p) => {
       const grp = g.groups.get(p.groupId);
-      return grp && grp.size === 1 && !p.inPlace;
+      return grp && grp.size === 1 && !p.inPlace && !p.lockedBy;
     });
 
     for (let i = loose.length - 1; i > 0; i--) {
@@ -138,17 +143,14 @@ export function usePuzzleEngine({
     const rect = canvas.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
     const g = gameRef.current;
-    const totalW = g.boardW + g.pieceW * 9.5;
-    const totalH = g.boardH + g.pieceH * 4.5;
-    const scale = Math.min(rect.width / totalW, rect.height / totalH);
-    g.camZoom = Math.min(Math.max(scale, 0.42), 1.35);
-    g.camX = (rect.width - g.boardW * g.camZoom) / 2;
-    g.camY = (rect.height - g.boardH * g.camZoom) / 2;
+    Object.assign(g, fitPuzzleCamera(g, rect.width, rect.height));
     setZoomPercent(Math.round(g.camZoom * 100));
   }, []);
 
   const mergePieceGroups = useCallback((pieceA, pieceB, playFx = true) => {
     const g = gameRef.current;
+    // Keep anchored pieces fixed when a loose group joins the completed area.
+    if (pieceA.inPlace && !pieceB.inPlace) [pieceA, pieceB] = [pieceB, pieceA];
     const gidA = pieceA.groupId;
     const gidB = pieceB.groupId;
     if (gidA === gidB) return false;
@@ -194,13 +196,16 @@ export function usePuzzleEngine({
   }, []);
 
   const checkAndSnapGroup = useCallback(
-    (rootPiece, playerObj) => {
+    (rootPiece, playerObj, { touch = false } = {}) => {
       const g = gameRef.current;
       const gid = rootPiece.groupId;
       const groupSet = g.groups.get(gid);
       if (!groupSet) return false;
 
-      const snapThreshold = Math.min(g.pieceW, g.pieceH) * 0.34;
+      const size = Math.min(g.pieceW, g.pieceH);
+      const snapThreshold = touch
+        ? Math.min(size * 0.5, Math.max(size * 0.34, 16 / g.camZoom))
+        : size * 0.34;
       let snappedAny = false;
 
       const targetRootX = rootPiece.c * g.pieceW;
@@ -235,6 +240,13 @@ export function usePuzzleEngine({
           if (nr < 0 || nr >= g.rows || nc < 0 || nc >= g.cols) continue;
           const nb = g.pieces[nr * g.cols + nc];
           if (!nb || nb.groupId === p.groupId) continue;
+          const neighborGroup = g.groups.get(nb.groupId);
+          if (
+            Array.from(neighborGroup || []).some(
+              (id) => g.pieces[id].lockedBy && g.pieces[id].lockedBy !== playerObj?.id,
+            )
+          )
+            continue;
 
           const expectedX = nb.x - dc * g.pieceW;
           const expectedY = nb.y - dr * g.pieceH;
@@ -263,8 +275,8 @@ export function usePuzzleEngine({
           setComboStreak({ count: g.streakCount, player: playerObj.name });
           addToast(
             g.streakCount >= 2
-              ? `🔥 ${g.streakCount}x Team Combo! ${playerObj.name} snapped a piece!`
-              : `${playerObj.name} connected a piece! (+1)`,
+              ? `🔥 ${bnNumber(g.streakCount)}× দলের কম্বো! ${playerObj.name} একটি টুকরো মিলিয়েছেন!`
+              : `${playerObj.name} একটি টুকরো মিলিয়েছেন! (+১)`,
             playerObj.color,
           );
           syncPlayersUI();
@@ -289,6 +301,9 @@ export function usePuzzleEngine({
         p.y = item.y;
         p.groupId = item.groupId;
         p.inPlace = Boolean(item.inPlace);
+        p.lockedBy = item.lockedBy || null;
+        p.lockedColor = item.lockedColor || null;
+        p.lockedName = item.lockedName || null;
         if (!g.groups.has(p.groupId)) g.groups.set(p.groupId, new Set());
         g.groups.get(p.groupId).add(p.id);
       });
@@ -407,7 +422,7 @@ export function usePuzzleEngine({
           updateProgressAndVictory();
           resolve(true);
         };
-        img.onerror = () => reject(new Error('Could not load the puzzle image.'));
+        img.onerror = () => reject(new Error('পাজলের ছবিটি লোড হয়নি।'));
         img.src = imgSrc;
       }),
     [arrangeLoosePiecesOnPerimeter, applySerializedPieces, centerCamera, updateProgressAndVictory],

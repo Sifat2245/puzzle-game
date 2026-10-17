@@ -11,11 +11,11 @@ export default function PuzzleWorkspace() {
     isLoading,
     gameRef: workspaceGameRef,
     canvasRef,
-    onCanvasPointerDown,
+    onBoardPointerDown,
     screenToWorld,
     triggerBoardPing,
-    onCanvasPointerMove,
-    onCanvasPointerUp,
+    onBoardPointerMove,
+    onBoardPointerUp,
     applyZoom,
     pingMode,
     toasts,
@@ -26,34 +26,27 @@ export default function PuzzleWorkspace() {
     handleCustomPhotoUpload,
   } = useGame();
   return (
-    <main className="relative flex-1 w-full h-full overflow-hidden">
+    <main className="relative min-h-0 flex-1 w-full overflow-hidden">
       <canvas
         ref={canvasRef}
-        onMouseDown={(e) => {
-          if (e.button === 0) onCanvasPointerDown(e.clientX, e.clientY);
-        }}
+        aria-label="পাজলের টেবিল। টুকরো টেনে জোড়া লাগান। ফাঁকা জায়গা টেনে টেবিল সরান। দুই আঙুল বা জুমের বোতাম দিয়ে ছোট-বড় করুন।"
+        onPointerDown={onBoardPointerDown}
+        onPointerMove={onBoardPointerMove}
+        onPointerUp={onBoardPointerUp}
+        onPointerCancel={onBoardPointerUp}
+        onLostPointerCapture={onBoardPointerUp}
+        onContextMenu={(event) => event.preventDefault()}
         onDoubleClick={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           const world = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
           triggerBoardPing(world.x, world.y);
         }}
-        onTouchStart={(e) => {
-          if (e.touches.length === 1) {
-            onCanvasPointerDown(e.touches[0].clientX, e.touches[0].clientY);
-          }
-        }}
-        onTouchMove={(e) => {
-          if (e.touches.length === 1) {
-            onCanvasPointerMove(e.touches[0].clientX, e.touches[0].clientY);
-          }
-        }}
-        onTouchEnd={onCanvasPointerUp}
         onWheel={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           const factor = e.deltaY < 0 ? 1.12 : 0.89;
           applyZoom(factor, e.clientX - rect.left, e.clientY - rect.top);
         }}
-        className={`block w-full h-full ${
+        className={`absolute inset-0 block w-full h-full touch-none ${
           pingMode ? 'cursor-crosshair' : 'cursor-grab active:cursor-grabbing'
         }`}
       />
@@ -61,7 +54,7 @@ export default function PuzzleWorkspace() {
       {(isLoading || !workspaceGameRef.current.pieces.length) && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/40">
           <p role="status" className="rounded-xl bg-slate-900 px-5 py-3 text-sm text-white">
-            {isLoading ? 'Preparing your puzzle…' : 'Waiting for the host to start a puzzle…'}
+            {isLoading ? 'আপনার পাজল সাজানো হচ্ছে…' : 'রুমের মালিক পাজল শুরু করলেই খেলা হবে…'}
           </p>
         </div>
       )}
@@ -98,7 +91,7 @@ export default function PuzzleWorkspace() {
               broadcastNetworkEvent({ type: 'EMOTE', emote, name: myName, color: myColor });
             }}
             className="hover:scale-125 transition px-1 text-base cursor-pointer"
-            title={`Send ${emote} reaction`}
+            title={`${emote} প্রতিক্রিয়া পাঠান`}
           >
             {emote}
           </button>
@@ -106,14 +99,10 @@ export default function PuzzleWorkspace() {
         <div className="h-3.5 w-[1px] bg-white/15 mx-1" />
         <label
           className="text-[11px] font-semibold text-sky-300 hover:text-sky-200 px-2 py-0.5 rounded bg-sky-500/15 hover:bg-sky-500/25 transition cursor-pointer flex items-center gap-1"
-          title={
-            isHost
-              ? 'Choose a photo for everyone in this room'
-              : 'The host chooses the room’s photo'
-          }
+          title={isHost ? 'এই রুমের সবার জন্য একটি ছবি বাছুন' : 'রুমের মালিক ছবিটি বেছে নেবেন'}
         >
           <Upload className="w-3 h-3" />
-          <span>Your photo</span>
+          <span>নিজের ছবি</span>
           <input
             type="file"
             disabled={!isHost}
